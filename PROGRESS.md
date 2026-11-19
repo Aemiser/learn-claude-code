@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0（考古）、Step 1（hello-loop）、**Step 2（stream-loop）**
-- 下一步：Step 3 模型层模块化 + 多轮 history + 错误重试（L2.1 完整/L2.3/L6.1 雏形，原 S2 调序至此）
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0–2、**Step 3（模块化+多轮+重试，里程碑 M1）**
+- 下一步：Step 4 第一次 tool loop——get_time 玩具工具全链路（L3.1–3.3 + L4.1，全课转折点）
 - 阻塞项：无
 
 ## 决策日志
@@ -20,6 +20,18 @@
 | 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 3 ✅（2026-11-19）
+- 产出：go/model.go（L2 独立：SSE 解析+重试+StreamHooks 契约）、go/main.go 重写（REPL+history 回滚）、notes/steps/step-03.md
+- 验证：go vet 通过；两连问记忆测试通过（答出「小明」，history 2→4，in 37→91 随历史增长）
+- 里程碑 **M1** 达成：流式多轮 CLI 聊天机
+- 设计决定：中断/失败回滚整个轮次（保 user/assistant 交替）；只在流未开始时重试；StreamHooks 隔离 L2↔L0
+- 遗留：history 无修剪（S9 compact）、无持久化（S9）、tool_use 流式形态未遇（S4）、重试路径未遇真实故障（自测法：停 Magpie 观察 4 次 retry 日志）
+
+## 复盘点 #1（Step 3 后，R13）
+- 🟡 已实装：L0.2、L2.1/2.2/2.3/2.4（观测级）、L6.1（内存）、L3.4（中断种子）
+- ⬜ 空壳：L1 全部、**L3 主体（loop 未转——当前最大空壳）**、L4/L5/L7/L8 主体
+- 结论：S4 起进入 agent 本体；METHODOLOGY v0.2（R17 升格 + 「证据先行」入观察）
 
 ### Step 2 ✅（2026-11-19）
 - 产出：go/main.go 重写为 stream-loop（~175 行，v1 单轮版在 git 历史）；notes/steps/step-02.md
@@ -47,3 +59,5 @@
 - S1-2：把 max_tokens 改成 64 再跑一次，观测行的 stop_reason 会变成什么？为什么？
 - S2-1：data 行的 JSON 里已经带了 type 字段，SSE 协议为什么还要有 "event:" 行？（提示：想想通用 SSE 客户端和带外路由）
 - S2-2：Ctrl+C 中断后我们直接丢弃了半截回复。真实 CC 的 "Interrupt and steer" 允许打断后补一句话继续——猜猜它把半截回复怎么处理了？（S3 有 history 后我们同样要面对：半截 assistant 消息进不进 history）
+- S3-1：为什么只在「流未开始」时重试？流中途失败后重试，用户会看到什么 bug？
+- S3-2：history 无限增长有哪两个代价？修剪应发生在哪一层、依据什么信息决策？（提示：观测行 in=37→91）
