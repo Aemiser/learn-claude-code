@@ -19,7 +19,7 @@
 │        └──► L4 工具注册表与内置工具 ⬜ (B) Tool.ts + tools/  │
 ├──────────────────────────────────────────────────────────────┤
 │ L2 模型调用 🟡S1       (B) services/api/{claude,withRetry}  │
-│   L2.1 请求构造 🟡S1 L2.2 streaming ⬜ L2.3 重试 ⬜ L2.4 🟡S1│
+│   L2.1 请求构造 🟡S1 L2.2 streaming 🟡S2 L2.3 重试 ⬜ L2.4 🟡S1│
 ├──────────────────────────────────────────────────────────────┤
 │ L6 上下文与会话 ⬜      (B) history.ts / services/compact/   │
 │   L6.1 history ⬜ L6.2 compact ⬜ L6.3 持久化resume ⬜        │
@@ -31,7 +31,7 @@
 └──────────────────────────────────────────────────────────────┘
 端点：本地 Magpie http://127.0.0.1:3425 /v1/messages（Anthropic 兼容，免鉴权）
 模型：auto/glm-5.3（注意 thinking block）｜ 语言：Go（项目内 1.25 工具链，系统 1.22 不动）
-(A)线实装：go/main.go —— L0.2 最小 REPL + L2.1 单轮非流式请求 + 观测行(stop_reason/usage)
+(A)线实装：go/main.go —— L0.2 REPL + L2.2 SSE 流式(thinking/text 双块) + Ctrl+C 中断本轮 + 观测行
 ```
 
 ## 数据流走查（一次「把 a.py 的 foo 改名为 bar」）

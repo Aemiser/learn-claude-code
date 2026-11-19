@@ -27,8 +27,8 @@
 |---|---|---|---|
 | 0 | cc-haha 结构考古 | 全层索引 | notes/cc-haha-map.md（本步已完成） |
 | 1 | hello-loop：最小问答 | L0.2+L2.1 | 单 main.go 裸 HTTP，中文问答 |
-| 2 | 模型层模块化+多轮+重试 | L2.1/L2.3+L6.1 | 三轮记忆；断网重试 |
-| 3 | streaming | L2.2 | 逐字输出；Ctrl+C 单轮中断（M1） |
+| 2 | streaming(SSE) | L2.2 | 逐字输出；Ctrl+C 中断本轮（原 S3，应用户要求调序） |
+| 3 | 模型层模块化+多轮+重试 | L2.1/L2.3+L6.1 | 三轮记忆；断网重试（M1） |
 | 4 | 第一次 tool loop | L3.1-3.3+L4.1 | get_time 全链路转起来 |
 | 5 | Read+Write | L4.2a/L4.4 | 行号、截断 |
 | 6 | Edit+Glob+Grep | L4.2b | 一条指令自动改文件（M2） |

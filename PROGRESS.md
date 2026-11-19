@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0（考古）、**Step 1（hello-loop）**
-- 下一步：Step 2 模型层模块化 + 多轮 history + 错误重试（L2.1 完整/L2.3/L6.1 雏形）
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0（考古）、Step 1（hello-loop）、**Step 2（stream-loop）**
+- 下一步：Step 3 模型层模块化 + 多轮 history + 错误重试（L2.1 完整/L2.3/L6.1 雏形，原 S2 调序至此）
 - 阻塞项：无
 
 ## 决策日志
@@ -17,8 +17,15 @@
 | 2026-11-19 | 模型端点=本地 Magpie 127.0.0.1:3425 /v1/messages（Anthropic 兼容，免鉴权）；默认 auto/glm-5.3 |
 | 2026-11-19 | 工作约定：代码在 go/ 下；每步先写 notes/steps/step-XX.md 前置导读；每步一个 commit |
 | 2026-11-19 | 新规则 R16：建立 METHODOLOGY.md，持续收集学习规则与想法，迭代成可复用方法论/skill；每步第8段检查更新 |
+| 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 2 ✅（2026-11-19）
+- 产出：go/main.go 重写为 stream-loop（~175 行，v1 单轮版在 git 历史）；notes/steps/step-02.md
+- 验证：管道实测「用一句话说明什么是 SSE」→ thinking/text 双段流式，stop_reason=end_turn，in=17 out=436
+- 关键实测发现：message_start.usage.input_tokens 是占位 0，真值在 message_delta——账目解析以后者为准
+- 遗留：无 history/无重试（S3）；tool_use 的流式形态 input_json_delta 尚未遇到（S4）；Ctrl+C 在提示符空闲时仍默认杀进程（可接受，S9 会话持久化前无状态可丢）
 
 ### Step 1 ✅（2026-11-19）
 - 产出：go/go.mod（go 1.25 隔离工具链生效）、go/main.go（~105 行）、notes/steps/step-01.md
@@ -38,3 +45,5 @@
 - S0-2：为什么 BashTool 与 PowerShellTool 分立成两个工具，而不是一个带 shell 参数的工具？
 - S1-1：Message.Content 现在是 string，Step 4 回填 tool_result 时必须变成块数组——为什么 API 允许 user 消息的 content 既可以是字符串也可以是块数组？
 - S1-2：把 max_tokens 改成 64 再跑一次，观测行的 stop_reason 会变成什么？为什么？
+- S2-1：data 行的 JSON 里已经带了 type 字段，SSE 协议为什么还要有 "event:" 行？（提示：想想通用 SSE 客户端和带外路由）
+- S2-2：Ctrl+C 中断后我们直接丢弃了半截回复。真实 CC 的 "Interrupt and steer" 允许打断后补一句话继续——猜猜它把半截回复怎么处理了？（S3 有 history 后我们同样要面对：半截 assistant 消息进不进 history）
