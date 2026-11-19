@@ -16,6 +16,7 @@
 | 2026-11-19 | 技术栈 Go；系统 1.22 不动，项目内用 1.25 工具链（GOTOOLCHAIN=auto + goproxy.cn） |
 | 2026-11-19 | 模型端点=本地 Magpie 127.0.0.1:3425 /v1/messages（Anthropic 兼容，免鉴权）；默认 auto/glm-5.3 |
 | 2026-11-19 | 工作约定：代码在 go/ 下；每步先写 notes/steps/step-XX.md 前置导读；每步一个 commit |
+| 2026-11-19 | 新规则 R16：建立 METHODOLOGY.md，持续收集学习规则与想法，迭代成可复用方法论/skill；每步第8段检查更新 |
 
 ## Step 记录
 

@@ -49,5 +49,6 @@ TUI 用 bufio 起步（Bubble Tea 为选修）；权限只做 Manual+规则（Au
 
 ## 跨会话约定
 
-`PLAN.md`(本文件) / `ARCHITECTURE.md`(L0-L8 编号+状态) / `PROGRESS.md`(每步必更) / `notes/`(层笔记+考古图)。
+`PLAN.md`(本文件) / `ARCHITECTURE.md`(L0-L8 编号+状态) / `PROGRESS.md`(每步必更) /
+`METHODOLOGY.md`(学习方法论·规则与想法持续收集，每步收尾检查、每3步归纳) / `notes/`(层笔记+步骤导读+考古图)。
 换会话说「继续」，按 PROGRESS.md 接续。
