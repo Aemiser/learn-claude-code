@@ -12,11 +12,11 @@
 │ L1 配置与记忆 ⬜        (B) utils/config.ts / memdir/        │
 │   L1.1 settings层级 ⬜  L1.2 env/密钥 ⬜  L1.3 记忆注入 ⬜    │
 ├──────────────────────────────────────────────────────────────┤
-│ L3 Agent Loop ⬜        (B) query.ts + QueryEngine.ts        │
-│   L3.1 骨架 ⬜ L3.2 解析分发 ⬜ L3.3 回填 ⬜                 │
-│   L3.4 停止/中断 ⬜     L3.5 并发 ⬜                          │
+│ L3 Agent Loop 🟡S4     (B) query.ts + QueryEngine.ts        │
+│   L3.1 骨架 🟡S4 L3.2 解析分发 🟡S4 L3.3 回填 🟡S4        │
+│   L3.4 停止/中断 🟡S4 L3.5 并发 ⬜                          │
 │        ▲            ┌── L5 权限与安全 ⬜ (B) toolPermission/ │
-│        └──► L4 工具注册表与内置工具 ⬜ (B) Tool.ts + tools/  │
+│        └──► L4 工具注册表与内置工具 🟡S4 (B) Tool.ts+tools/ │
 ├──────────────────────────────────────────────────────────────┤
 │ L2 模型调用 🟡S3       (B) services/api/{claude,withRetry}  │
 │   L2.1 请求构造 🟡S1 L2.2 streaming 🟡S2 L2.3 重试 🟡S3 L2.4 🟡S1│
@@ -31,8 +31,8 @@
 └──────────────────────────────────────────────────────────────┘
 端点：本地 Magpie http://127.0.0.1:3425 /v1/messages（Anthropic 兼容，免鉴权）
 模型：auto/glm-5.3（注意 thinking block）｜ 语言：Go（项目内 1.25 工具链，系统 1.22 不动）
-(A)线实装：go/main.go(L0.2 REPL + L6.1 内存 history/回滚) + go/model.go(L2：SSE 解析、重试、
-StreamHooks 契约、system/messages 完整请求) —— 里程碑 M1：流式多轮聊天机
+(A)线实装：go/main.go(L0.2 REPL + L6.1 history/回滚) + go/model.go(L2 全段+tool_use 流式解析)
++ go/loop.go(L3.1–3.4 agent loop) + go/tools.go(L4.1 Tool 接口+注册表+get_time) —— 里程碑 M1 后，agent 本体已转
 ```
 
 ## 数据流走查（一次「把 a.py 的 foo 改名为 bar」）

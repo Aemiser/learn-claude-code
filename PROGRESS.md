@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0–2、**Step 3（模块化+多轮+重试，里程碑 M1）**
-- 下一步：Step 4 第一次 tool loop——get_time 玩具工具全链路（L3.1–3.3 + L4.1，全课转折点）
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0–3、**Step 4（第一次 tool loop，全课转折点）**
+- 下一步：Step 5 Read + Write 工具（L4.2a + L4.4 行号与截断）——让 agent 真正读文件、改文件
 - 阻塞项：无
 
 ## 决策日志
@@ -20,6 +20,13 @@
 | 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 4 ✅（2026-11-19）—— 全课转折点
+- 产出：go/tools.go（L4.1 Tool 接口+注册表+get_time）、go/loop.go（L3.1–3.4 loop）、go/model.go 重写（tool_use 流式解析+Message 二态+ContentBlock）、go/main.go（调 runLoop+回滚锚点）、notes/steps/step-04.md
+- 验证：go vet 通过；「查纽约时间」→ 工具调用+结果+第二轮思考+最终回答（EST 正确），轮数=2，history=4
+- 关键发现（证据先行）：tool_use 流式参数经 input_json_delta 的 partial_json 片段拼接，非一次性 JSON；cc-haha 教训「stop_reason 不可靠」→ 自记 toolUseSeen 作判定信号
+- 教学简化：thinking 不入历史（真实 CC 在 trajectory 内保留）；流结束后才执行工具（真实为 streamingToolExecutor）
+- 遗留：L3.5 并发未做（S7）；未知工具名回 is_error 已处理但未实测（S4-2 思考题）
 
 ### Step 3 ✅（2026-11-19）
 - 产出：go/model.go（L2 独立：SSE 解析+重试+StreamHooks 契约）、go/main.go 重写（REPL+history 回滚）、notes/steps/step-03.md
@@ -61,3 +68,5 @@
 - S2-2：Ctrl+C 中断后我们直接丢弃了半截回复。真实 CC 的 "Interrupt and steer" 允许打断后补一句话继续——猜猜它把半截回复怎么处理了？（S3 有 history 后我们同样要面对：半截 assistant 消息进不进 history）
 - S3-1：为什么只在「流未开始」时重试？流中途失败后重试，用户会看到什么 bug？
 - S3-2：history 无限增长有哪两个代价？修剪应发生在哪一层、依据什么信息决策？（提示：观测行 in=37→91）
+- S4-1：为什么 tool_result 必须放在 role:"user" 的消息里，而不能放 assistant？（提示：API 交替约束 + 语义：谁在"提供信息"）
+- S4-2：模型若调用一个不存在的工具名（如编造 read_file），loop 会怎样？为什么回 is_error 比直接崩溃更好？
