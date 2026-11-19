@@ -1,0 +1,10 @@
+# B 线只读参照仓库（自带 .git，永不纳入本项目历史）
+reference/
+
+# 环境与密钥（本地 Magpie 当前免鉴权，留作将来切真 Anthropic 用）
+.env
+.env.*
+
+# Go 构建产物
+*.exe
+gocache/
