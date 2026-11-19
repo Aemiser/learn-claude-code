@@ -8,3 +8,4 @@ reference/
 # Go 构建产物
 *.exe
 gocache/
+.*/
