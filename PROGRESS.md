@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0–3、**Step 4（第一次 tool loop，全课转折点）**
-- 下一步：Step 5 Read + Write 工具（L4.2a + L4.4 行号与截断）——让 agent 真正读文件、改文件
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0–4、**Step 5（Read/Write 工具）**
+- 下一步：Step 6 Edit + Glob + Grep（L4.2b）——里程碑 M2：一条指令全自动改文件
 - 阻塞项：无
 
 ## 决策日志
@@ -20,6 +20,12 @@
 | 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 5 ✅（2026-11-20）
+- 产出：go/tools.go 重写（Read/Write 入表，loop/model 零改动）、notes/steps/step-05.md（首张 R18 archify SVG：notes/assets/tool-registry-{light,dark}.svg）
+- 验证：vet 过；三测全过——读 PLAN.md 出行号化结果+准确总结（in=2507 成本可见）；Write 新文件落盘；read-first 拦截后模型自纠正（先 Read 再 Write 成功）
+- B 线证据入册：工具名 PascalCase、2000 行上限、cat -n 格式、read-first 防护均出自 cc-haha FileRead/WriteTool/prompt.ts【社区证据】
+- 遗留：路径越界无防护（刻意推迟 S8/L5）；FILE_UNCHANGED_STUB 未做；Edit 未做（S6）
 
 ### Step 4 ✅（2026-11-19）—— 全课转折点
 - 产出：go/tools.go（L4.1 Tool 接口+注册表+get_time）、go/loop.go（L3.1–3.4 loop）、go/model.go 重写（tool_use 流式解析+Message 二态+ContentBlock）、go/main.go（调 runLoop+回滚锚点）、notes/steps/step-04.md
@@ -70,3 +76,5 @@
 - S3-2：history 无限增长有哪两个代价？修剪应发生在哪一层、依据什么信息决策？（提示：观测行 in=37→91）
 - S4-1：为什么 tool_result 必须放在 role:"user" 的消息里，而不能放 assistant？（提示：API 交替约束 + 语义：谁在"提供信息"）
 - S4-2：模型若调用一个不存在的工具名（如编造 read_file），loop 会怎样？为什么回 is_error 比直接崩溃更好？
+- S5-1：Read 结果为什么要带 cat -n 行号？给谁看的？（提示：S6 的 Edit 靠什么锚定改动位置）
+- S5-2：read-first 防护防的是什么事故？如果没有它，一次「凭想象覆盖」会毁掉什么？
