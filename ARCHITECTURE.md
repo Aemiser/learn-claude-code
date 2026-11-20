@@ -16,7 +16,7 @@
 │   L3.1 骨架 🟡S4 L3.2 解析分发 🟡S4 L3.3 回填 🟡S4        │
 │   L3.4 停止/中断 🟡S4 L3.5 并发 ⬜                          │
 │        ▲            ┌── L5 权限与安全 ⬜ (B) toolPermission/ │
-│        └──► L4 工具注册表与内置工具 🟡S5 (B) Tool.ts+tools/ │
+│        └──► L4 工具注册表与内置工具 🟡S6 (B) Tool.ts+tools/ │
 ├──────────────────────────────────────────────────────────────┤
 │ L2 模型调用 🟡S3       (B) services/api/{claude,withRetry}  │
 │   L2.1 请求构造 🟡S1 L2.2 streaming 🟡S2 L2.3 重试 🟡S3 L2.4 🟡S1│
@@ -32,8 +32,8 @@
 端点：本地 Magpie http://127.0.0.1:3425 /v1/messages（Anthropic 兼容，免鉴权）
 模型：auto/glm-5.3（注意 thinking block）｜ 语言：Go（项目内 1.25 工具链，系统 1.22 不动）
 (A)线实装：go/main.go(L0.2 REPL + L6.1 history/回滚) + go/model.go(L2 全段+tool_use 流式解析)
-+ go/loop.go(L3.1–3.4 agent loop) + go/tools.go(L4.1 注册表 + get_time/Read/Write，
-cat -n 行号+2000 行截断+read-first 防护) —— agent 已能读写文件
++ go/loop.go(L3.1–3.4 agent loop) + go/tools.go(L4.1 注册表 + get_time/Read/Write/Edit/Glob/Grep)
+—— **里程碑 M2**：一条指令全自动「创建→编辑→检索」。复盘#2：最大空壳=L5（能改世界却无人把关）
 ```
 
 ## 数据流走查（一次「把 a.py 的 foo 改名为 bar」）

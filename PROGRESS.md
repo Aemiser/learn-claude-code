@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0–4、**Step 5（Read/Write 工具）**
-- 下一步：Step 6 Edit + Glob + Grep（L4.2b）——里程碑 M2：一条指令全自动改文件
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0–5、**Step 6（Edit/Glob/Grep，里程碑 M2 + 复盘#2）**
+- 下一步：Step 7 Bash 工具 + 并发工具调用（L4.3 + L3.5）——agent 获得执行命令的能力
 - 阻塞项：无
 
 ## 决策日志
@@ -20,6 +20,19 @@
 | 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 6 ✅（2026-11-20）—— 里程碑 M2
+- 产出：go/tools.go 增 Edit/Glob/Grep（loop/model 依旧零改动）、notes/steps/step-06.md + edit-flow 双主题 SVG（首次 workflow 模式，2 轮布局修复）
+- 验证矩阵：M2 剧本 Write→Edit→Grep 四连发 ✅；Edit 唯一匹配+行号片段 ✅；**多匹配拒绝实测触发**（文案与 cc-haha FileEditTool.ts:336 逐字一致）✅；read-first 对 Edit 生效 ✅；模型自避歧义（带上下文分两次编辑）✅；Glob 双星 ✅
+- 意外发现：模型在多匹配测试中两次自发规避歧义、第三次被强制裸 old_string 时 thinking 里**预判会失败仍执行**——约束已内化进模型决策
+- 未测：0 处匹配分支（与多匹配同构，代码审查覆盖）；Glob 排序细节
+- 测试方法论教训：验证 agent 行为分支时，指令要够「死板」，否则模型会自发绕开待测路径
+
+## 复盘点 #2（Step 6 后，R13）
+- 🟡 已实装：L0.2、L2.1–2.4、L3.1–3.4、L4 全段（4.1/4.2a/4.2b/4.4）、L6.1（内存）
+- ⬜ 空壳：L1 全部、L3.5 并发、**L5 全部（当前最大空壳：agent 能改任何文件却无人把关）**、L6.2/6.3、L7、L8
+- M2 达成。路线：S7（Bash+并发）→ S8（L5 权限）正好补最大空壳
+- METHODOLOGY v0.5（见 C 区）
 
 ### Step 5 ✅（2026-11-20）
 - 产出：go/tools.go 重写（Read/Write 入表，loop/model 零改动）、notes/steps/step-05.md（首张 R18 archify SVG：notes/assets/tool-registry-{light,dark}.svg）
@@ -78,3 +91,5 @@
 - S4-2：模型若调用一个不存在的工具名（如编造 read_file），loop 会怎样？为什么回 is_error 比直接崩溃更好？
 - S5-1：Read 结果为什么要带 cat -n 行号？给谁看的？（提示：S6 的 Edit 靠什么锚定改动位置）
 - S5-2：read-first 防护防的是什么事故？如果没有它，一次「凭想象覆盖」会毁掉什么？
+- S6-1：Edit 在 >1 匹配时拒绝执行（要求补上下文），而不是像 sed 那样默认替换第一处——这个「不方便」为什么是安全关键？
+- S6-2：真实 Grep 用 ripgrep（默认尊重 .gitignore），我们用 Go regexp 全量遍历——在 reference/cc-haha 这种带 .gitignore 的大仓库里搜，两者结果会差在哪？这个差异何时会误导模型？

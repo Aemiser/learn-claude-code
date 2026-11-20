@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -174,9 +176,286 @@ var toolRegistry = map[string]Tool{
 			return fmt.Sprintf("wrote %d bytes to %s", len(content), fp), nil
 		},
 	},
+	// ===== L4.2b · Edit：唯一匹配替换（diff 式修改） =====
+	"Edit": {
+		Name: "Edit",
+		Description: "Performs exact string replacement in a file. old_string must match the file content " +
+			"exactly, including whitespace and indentation, and must be unique in the file " +
+			"(include surrounding lines for context if needed). Fails if old_string is not found or matches more than once " +
+			"unless replace_all is true. You must Read the file before editing it. " +
+			"Prefer this tool over Write for modifications — it only sends the diff.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"file_path": map[string]any{
+					"type": "string", "description": "Absolute path to the file to modify",
+				},
+				"old_string": map[string]any{
+					"type": "string", "description": "Exact text to replace (must be unique in the file)",
+				},
+				"new_string": map[string]any{
+					"type": "string", "description": "Replacement text",
+				},
+				"replace_all": map[string]any{
+					"type": "boolean", "description": "Replace all occurrences. Optional, default false.",
+				},
+			},
+			"required": []string{"file_path", "old_string", "new_string"},
+		},
+		Execute: func(args map[string]any) (string, error) {
+			fp, _ := args["file_path"].(string)
+			oldS, _ := args["old_string"].(string)
+			newS, _ := args["new_string"].(string)
+			replaceAll, _ := args["replace_all"].(bool)
+			if fp == "" || oldS == "" && newS == "" {
+				return "", errors.New("file_path, old_string and new_string are required")
+			}
+			if !filepath.IsAbs(fp) {
+				return "", fmt.Errorf("file_path must be absolute, got: %s", fp)
+			}
+			if oldS == newS {
+				// 【社区证据（cc-haha）：FileEditTool.ts:148】No changes to make
+				return "", errors.New("no changes to make: old_string and new_string are exactly the same")
+			}
+			// read-first 闸：改文件比写文件更需要知道现状
+			if !readFirst[fp] {
+				if _, err := os.Stat(fp); err == nil {
+					return "", fmt.Errorf("file %s exists but was not Read in this session; Read it first before editing", fp)
+				}
+				if oldS != "" {
+					return "", fmt.Errorf("file %s does not exist; use Write to create it", fp)
+				}
+			}
+			data, err := os.ReadFile(fp)
+			if err != nil {
+				if os.IsNotExist(err) && oldS == "" {
+					// 空 old + 不存在 → 创建新文件【社区证据（cc-haha）：FileEditTool.ts:225】
+					if err := os.MkdirAll(filepath.Dir(fp), 0o755); err != nil {
+						return "", err
+					}
+					if err := os.WriteFile(fp, []byte(newS), 0o644); err != nil {
+						return "", err
+					}
+					readFirst[fp] = true
+					return fmt.Sprintf("created %s (%d bytes)", fp, len(newS)), nil
+				}
+				return "", err
+			}
+			content := string(data)
+			// 匹配计数三分支【社区证据（cc-haha）：FileEditTool.ts:316-336】
+			matches := strings.Count(content, oldS)
+			switch {
+			case matches == 0:
+				return "", fmt.Errorf("string to replace not found in file.\nString: %s", oldS)
+			case matches > 1 && !replaceAll:
+				return "", fmt.Errorf(
+					"found %d matches of the string to replace, but replace_all is false. "+
+						"To replace all occurrences, set replace_all to true. "+
+						"To replace only one occurrence, include more surrounding lines to make old_string unique.\nString: %s",
+					matches, oldS)
+			}
+			replaced := strings.Replace(content, oldS, newS, 1)
+			if replaceAll {
+				replaced = strings.ReplaceAll(content, oldS, newS)
+			}
+			if err := os.WriteFile(fp, []byte(replaced), 0o644); err != nil {
+				return "", err
+			}
+			// 成功回传改动处 ±3 行片段（带行号），供模型自查落点
+			return editSnippet(replaced, newS), nil
+		},
+	},
+
+	// ===== L4.2b · Glob：按模式找文件名 =====
+	"Glob": {
+		Name:        "Glob",
+		Description: "Fast file pattern matching. Supports glob patterns like \"**/*.go\" (** matches any depth). Returns matching file paths sorted, up to 100 results.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"pattern": map[string]any{
+					"type": "string", "description": "Glob pattern, e.g. **/*.go or src/**/*.ts",
+				},
+				"path": map[string]any{
+					"type": "string", "description": "Directory to search in. Optional, defaults to current directory.",
+				},
+			},
+			"required": []string{"pattern"},
+		},
+		Execute: func(args map[string]any) (string, error) {
+			pattern, _ := args["pattern"].(string)
+			root, _ := args["path"].(string)
+			if pattern == "" {
+				return "", errors.New("pattern is required")
+			}
+			if root == "" {
+				root = "."
+			}
+			absRoot, err := filepath.Abs(root)
+			if err != nil {
+				return "", err
+			}
+			re, err := globToRegexp(pattern)
+			if err != nil {
+				return "", err
+			}
+			var matches []string
+			err = filepath.WalkDir(absRoot, func(p string, d os.DirEntry, err error) error {
+				if err != nil {
+					return nil // 不可读的目录跳过，不让整个搜索崩掉
+				}
+				if d.IsDir() {
+					return nil
+				}
+				rel, rerr := filepath.Rel(absRoot, p)
+				if rerr != nil {
+					return nil
+				}
+				rel = filepath.ToSlash(rel)
+				if re.MatchString(rel) {
+					matches = append(matches, p)
+					if len(matches) >= 100 {
+						return filepath.SkipAll // 限量 100，防爆结果
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return "", err
+			}
+			if len(matches) == 0 {
+				return "no files matched", nil
+			}
+			sort.Strings(matches)
+			return strings.Join(matches, "\n") + fmt.Sprintf("\n[%d files]", len(matches)), nil
+		},
+	},
+
+	// ===== L4.2b · Grep：按正则搜内容 =====
+	"Grep": {
+		Name:        "Grep",
+		Description: "Searches file contents with a regular expression. Returns matches in \"file:line:content\" format, up to 100 results. Searches recursively under the given path (default: current directory).",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"pattern": map[string]any{
+					"type": "string", "description": "Regular expression to search for",
+				},
+				"path": map[string]any{
+					"type": "string", "description": "File or directory to search. Optional, defaults to current directory.",
+				},
+			},
+			"required": []string{"pattern"},
+		},
+		Execute: func(args map[string]any) (string, error) {
+			pattern, _ := args["pattern"].(string)
+			root, _ := args["path"].(string)
+			if pattern == "" {
+				return "", errors.New("pattern is required")
+			}
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return "", fmt.Errorf("invalid regex: %v", err)
+			}
+			if root == "" {
+				root = "."
+			}
+			info, err := os.Stat(root)
+			if err != nil {
+				return "", err
+			}
+			var hits []string
+			scanFile := func(p string) error {
+				data, err := os.ReadFile(p)
+				if err != nil {
+					return nil // 二进制/无权限跳过
+				}
+				for i, line := range strings.Split(string(data), "\n") {
+					if re.MatchString(line) {
+						hits = append(hits, fmt.Sprintf("%s:%d:%s", p, i+1, strings.TrimSpace(line)))
+						if len(hits) >= 100 {
+							return errLimitReached // 限量哨兵
+						}
+					}
+				}
+				return nil
+			}
+			if !info.IsDir() {
+				err = scanFile(filepath.ToSlash(root))
+			} else {
+				err = filepath.WalkDir(root, func(p string, d os.DirEntry, werr error) error {
+					if werr != nil || d.IsDir() {
+						return nil
+					}
+					return scanFile(p)
+				})
+			}
+			if err != nil && err != errLimitReached {
+				return "", err
+			}
+			if len(hits) == 0 {
+				return "no matches", nil
+			}
+			return strings.Join(hits, "\n") + fmt.Sprintf("\n[%d matches]", len(hits)), nil
+		},
+	},
 }
 
-// toolSpecs 把注册表转成 API 请求的 tools 字段。
+// errLimitReached Grep/Glob 限量哨兵（内部用）
+var errLimitReached = errors.New("result limit reached")
+
+// editSnippet 返回 newS 首次出现处 ±3 行的带行号片段（供模型自查改动落点）
+func editSnippet(content, newS string) string {
+	lines := strings.Split(content, "\n")
+	joined := strings.Join(lines, "\n")
+	idx := strings.Index(joined, newS)
+	if idx < 0 {
+		return "edit applied"
+	}
+	// 由字符偏移算行号
+	line := strings.Count(joined[:idx], "\n")
+	start, end := line-3, line+3
+	if start < 0 {
+		start = 0
+	}
+	if end > len(lines)-1 {
+		end = len(lines) - 1
+	}
+	var sb strings.Builder
+	for i := start; i <= end; i++ {
+		fmt.Fprintf(&sb, "%6d\t%s\n", i+1, lines[i])
+	}
+	return sb.String()
+}
+
+// globToRegexp 把 glob 模式编译为正则：** 跨目录、* 单段内、? 单字符（教学实现）
+func globToRegexp(pattern string) (*regexp.Regexp, error) {
+	var sb strings.Builder
+	sb.WriteString("^")
+	for i := 0; i < len(pattern); i++ {
+		switch c := pattern[i]; c {
+		case '*':
+			if i+1 < len(pattern) && pattern[i+1] == '*' {
+				// "**"：跨任意目录（吃掉紧随的 / 也可以）
+				sb.WriteString("(?:.*/)?")
+				i++
+				if i+1 < len(pattern) && pattern[i+1] == '/' {
+					i++ // "**/" 已被 (?:.*/)? 覆盖
+				}
+			} else {
+				sb.WriteString("[^/]*")
+			}
+		case '?':
+			sb.WriteString("[^/]")
+		case '.':
+			sb.WriteString(`\.`)
+		default:
+			sb.WriteByte(c)
+		}
+	}
+	sb.WriteString("$")
+	return regexp.Compile(sb.String())
+}
 // 注意：map 迭代顺序随机，但 tools 数组顺序对模型无意义，可接受。
 func toolSpecs() []map[string]any {
 	specs := []map[string]any{}
