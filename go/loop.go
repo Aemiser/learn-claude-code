@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 const maxRounds = 10 // L3.4 停止条件：防止模型死循环烧钱
@@ -48,33 +49,43 @@ func runLoop(ctx context.Context, history []Message, hooks StreamHooks) ([]Messa
 			return history, sum, fmt.Errorf("超过最大轮数 %d", maxRounds)
 		}
 
-		// L3.3 回填：执行每个 tool_use 块，生成 tool_result 块
-		var results []ContentBlock
+		// L3.3 回填：执行每个 tool_use 块，生成 tool_result 块——L3.5 并发：同一轮内的多个工具调用并行执行
+		// 先收集本轮全部 tool_use（第二遍才并发执行），以便按数量预分片、各 goroutine 写各自的下标。
+		var calls []ContentBlock
 		for _, b := range res.Blocks {
-			if b.Type != "tool_use" {
-				continue
+			if b.Type == "tool_use" {
+				calls = append(calls, b)
 			}
-			tool, ok := toolRegistry[b.Name]
-			if !ok { // 模型可能编造不存在的工具名，回一个 is_error 让它知道
-				results = append(results, ContentBlock{
-					Type: "tool_result", ToolUseID: b.ID,
-					Content: fmt.Sprintf("unknown tool: %s", b.Name), IsError: true,
-				})
-				continue
-			}
-			fmt.Printf("🔧 调用工具 %s(%s)\n", b.Name, compactArgs(b.Input))
-			out, execErr := tool.Execute(b.Input)
-			tr := ContentBlock{Type: "tool_result", ToolUseID: b.ID}
-			if execErr != nil {
-				tr.IsError = true
-				tr.Content = execErr.Error()
-				fmt.Printf("✗ 工具失败: %v\n", execErr)
-			} else {
-				tr.Content = out
-				fmt.Printf("✓ 工具返回: %s\n", truncate(out, 120))
-			}
-			results = append(results, tr)
 		}
+		results := make([]ContentBlock, len(calls)) // 预分片：并发写各自下标，规避共享 append 的数据竞争
+		var wg sync.WaitGroup                       // 等待 N 个并发工具全部完成，再合流回填（N=1 时退化为同步）
+		for i, b := range calls {
+			wg.Add(1)
+			go func(i int, b ContentBlock) { // 捕获 i、b 副本（Go 1.22+ 每迭代新变量，这里再保险一层）
+				defer wg.Done()
+				tool, ok := toolRegistry[b.Name]
+				if !ok { // 模型可能编造不存在的工具名，回一个 is_error 让它知道
+					results[i] = ContentBlock{
+						Type: "tool_result", ToolUseID: b.ID,
+						Content: fmt.Sprintf("unknown tool: %s", b.Name), IsError: true,
+					}
+					return
+				}
+				fmt.Printf("🔧 调用工具 %s(%s)\n", b.Name, compactArgs(b.Input))
+				out, execErr := tool.Execute(b.Input)
+				tr := ContentBlock{Type: "tool_result", ToolUseID: b.ID}
+				if execErr != nil {
+					tr.IsError = true
+					tr.Content = execErr.Error()
+					fmt.Printf("✗ 工具失败: %v\n", execErr)
+				} else {
+					tr.Content = out
+					fmt.Printf("✓ 工具返回: %s\n", truncate(out, 120))
+				}
+				results[i] = tr
+			}(i, b)
+		}
+		wg.Wait() // 合流点：全部 tool_result 就绪后，才作为一条 user 消息回传
 		// tool_result 必须以 user 角色回传【官方事实：how-tool-use-works】
 		history = append(history, Message{Role: "user", Content: results})
 	}

@@ -3,8 +3,8 @@
 ## 当前状态
 
 - 阶段：Phase 2 进行中
-- 已完成：Phase 0 校准、Phase 1 计划、Step 0–5、**Step 6（Edit/Glob/Grep，里程碑 M2 + 复盘#2）**
-- 下一步：Step 7 Bash 工具 + 并发工具调用（L4.3 + L3.5）——agent 获得执行命令的能力
+- 已完成：Phase 0 校准、Phase 1 计划、Step 0–6、**Step 7（Bash + 并发工具调用，L4.3 + L3.5）**
+- 下一步：Step 8 权限层（L5.1–5.3）——补上「agent 能碰任何东西却无人把关」的最大空壳
 - 阻塞项：无
 
 ## 决策日志
@@ -20,6 +20,13 @@
 | 2026-11-19 | 课程调序：S2↔S3（学习者想先看 SSE 流式），总量与依赖不变 |
 
 ## Step 记录
+
+### Step 7 ✅（2026-11-21）
+- 产出：go/bash.go（L4.3 Bash：cmd.exe/bash -c 子进程 + cd 追踪 + 30000 字符截断 + exit code 判错）、go/loop.go（L3.5 并发：goroutine+WaitGroup）、notes/steps/step-07.md + step7-bash-concurrency 双主题 SVG
+- 验证：vet+编译过；单条 Bash `echo step7-ok` ✅；纯 `cd ..` → `pwd` 工作目录追踪生效 ✅；双 Bash 并发签名（两 🔧 先于两 ✓）实测 ✅
+- 证据入册：工具名 Bash/超时 120s-600s/输出 30000 截断/stderr 合并/exit code 语义，均出自 cc-haha toolName.ts+timeouts.ts+outputLimits.ts+commandSemantics.ts+prompt.ts【社区证据】
+- 刻意不做：权限层（S8）、PowerShellTool 分立、后台任务、grep/find/diff exit code 特例表、cd 复合追踪
+- 教学简化：单 shell 平台二分，无 run_in_background，输出先跑完再回传（非流式）
 
 ### Step 6 ✅（2026-11-20）—— 里程碑 M2
 - 产出：go/tools.go 增 Edit/Glob/Grep（loop/model 依旧零改动）、notes/steps/step-06.md + edit-flow 双主题 SVG（首次 workflow 模式，2 轮布局修复）
@@ -93,3 +100,5 @@
 - S5-2：read-first 防护防的是什么事故？如果没有它，一次「凭想象覆盖」会毁掉什么？
 - S6-1：Edit 在 >1 匹配时拒绝执行（要求补上下文），而不是像 sed 那样默认替换第一处——这个「不方便」为什么是安全关键？
 - S6-2：真实 Grep 用 ripgrep（默认尊重 .gitignore），我们用 Go regexp 全量遍历——在 reference/cc-haha 这种带 .gitignore 的大仓库里搜，两者结果会差在哪？这个差异何时会误导模型？
+- S7-1：为什么 Bash 工具要把 stderr 合并进 stdout 一起回传，而不是分开两个字段？合并会让模型损失什么信息、又避免什么麻烦？
+- S7-2：我们靠「纯 cd 命令」来追踪工作目录；一旦模型写 `cd x && make` 这种组合命令，cwd 追踪就失效了。真实系统若要靠注入/包裹每个命令来追踪 cwd，代价是什么？有没有比检测器更根本的做法？
